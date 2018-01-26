@@ -45,11 +45,8 @@ namespace Poc.Sqltabledependency {
       public void InstallNotification() {
         ExecuteNonQuery(GetInstallNotificationProcedureScript2());
 
-        string execInstallationProcedureScript = string.Format(
-          SQL_FORMAT_EXECUTE_PROCEDURE,
-          DatabaseName,
-          InstallListenerProcedureName,
-          SchemaName);
+        string execInstallationProcedureScript = 
+          GetSqlFormatExecuteProcedure(InstallListenerProcedureName);
         ExecuteNonQuery(execInstallationProcedureScript);
       }
 
@@ -84,11 +81,7 @@ namespace Poc.Sqltabledependency {
       public void UninstallNotification() {
         ExecuteNonQuery(GetUninstallNotificationProcedureScript());
 
-        string execUninstallationProcedureScript = string.Format(
-          SQL_FORMAT_EXECUTE_PROCEDURE,
-          DatabaseName,
-          UninstallListenerProcedureName,
-          SchemaName);
+        string execUninstallationProcedureScript = GetSqlFormatExecuteProcedure(UninstallListenerProcedureName);
         ExecuteNonQuery(execUninstallationProcedureScript);
       }
 
@@ -116,11 +109,13 @@ namespace Poc.Sqltabledependency {
       /// {1} - procedure name.
       /// {2} - schema name.
       /// </summary>
-      private const string SQL_FORMAT_EXECUTE_PROCEDURE = @"
-                USE [{0}]
-                IF OBJECT_ID ('{2}.{1}', 'P') IS NOT NULL
-                    EXEC {2}.{1}
+      private string GetSqlFormatExecuteProcedure(string procName) {
+        return $@"
+                USE [{DatabaseName}]
+                IF OBJECT_ID ('{SchemaName}.{procName}', 'P') IS NOT NULL
+                    EXEC {SchemaName}.{procName}
             ";
+      }
       #region Procedures
 
       private const string SQL_PERMISSIONS_INFO = @"
