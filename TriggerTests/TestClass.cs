@@ -96,5 +96,13 @@ namespace TriggerTests {
     //    connection.Execute(createTableSql);
     //  }
     //}
+
+    [Test]
+    public void TestValues()
+    {
+      //var asd = new SqlDependencyEx.QueueInitializer("TestDataBase", 1, "TestTableName", "dbo", "connectionString",
+      //  true, SqlDependencyEx.NotificationTypes.Insert);
+      //Assert.That(asd.GetUninstallServiceBrokerNotificationScript(), Is.EqualTo(asd.GetUninstallServiceBrokerNotificationScript2()));
+    }
   }
 }

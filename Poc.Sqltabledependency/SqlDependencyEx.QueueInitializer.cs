@@ -1,19 +1,21 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
 namespace Poc.Sqltabledependency {
   public sealed partial class SqlDependencyEx {
     private class QueueInitializer {
-      public QueueInitializer(string databaseName, int identity, string tableName, string schemaName, string connectionString, bool detailsIncluded, NotificationTypes notificaionTypes) {
+      public QueueInitializer(string databaseName, int identity, string tableName, string schemaName, string connectionString, bool detailsIncluded, NotificationTypes notificationTypes) {
         DatabaseName = databaseName;
         Identity = identity;
         TableName = tableName;
         SchemaName = schemaName;
         ConnectionString = connectionString;
         DetailsIncluded = detailsIncluded;
-        NotificaionTypes = notificaionTypes;
+        NotificationTypes = notificationTypes;
       }
 
       public string DatabaseName { get; private set; }
@@ -28,7 +30,7 @@ namespace Poc.Sqltabledependency {
 
       public bool DetailsIncluded { get; private set; }
 
-      public NotificationTypes NotificaionTypes { get; private set; }
+      public NotificationTypes NotificationTypes { get; private set; }
 
       private void ExecuteNonQuery(string commandText) {
         using (SqlConnection conn = new SqlConnection(ConnectionString))
@@ -118,22 +120,14 @@ namespace Poc.Sqltabledependency {
           SchemaName);
         ExecuteNonQuery(execUninstallationProcedureScript);
       }
-      private string TriggerTypeByListenerType
-      {
-        get
-        {
-          StringBuilder result = new StringBuilder();
-          if (NotificaionTypes.HasFlag(NotificationTypes.Insert))
-            result.Append("INSERT");
-          if (NotificaionTypes.HasFlag(NotificationTypes.Update))
-            result.Append(result.Length == 0 ? "UPDATE" : ", UPDATE");
-          if (NotificaionTypes.HasFlag(NotificationTypes.Delete))
-            result.Append(result.Length == 0 ? "DELETE" : ", DELETE");
-          if (result.Length == 0) result.Append("INSERT");
 
-          return result.ToString();
-        }
-      }
+      private string TriggerTypeByListenerType => 
+        NotificationTypes == NotificationTypes.None
+          ? "INSERT"
+          : Enum.GetValues(typeof(NotificationTypes)).OfType<NotificationTypes>()
+            .Where(t => t != NotificationTypes.None && NotificationTypes.HasFlag(t))
+            .Select(t => t.ToString().ToUpperInvariant())
+            .StringJoin(", ");
 
       private string InstallListenerProcedureName => $"sp_InstallListenerNotification_{Identity}";
 

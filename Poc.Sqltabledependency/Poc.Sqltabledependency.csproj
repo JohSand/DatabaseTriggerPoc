@@ -49,6 +49,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MiscExtensions.cs" />
     <Compile Include="SqlDependencyEx.cs" />
     <Compile Include="SqlDependencyEx.NotificationTypes.cs" />
     <Compile Include="SqlDependencyEx.QueueInitializer.cs" />
