@@ -100,9 +100,9 @@ namespace TriggerTests {
     [Test]
     public void TestValues()
     {
-      //var asd = new SqlDependencyEx.QueueInitializer("TestDataBase", 1, "TestTableName", "dbo", "connectionString",
-      //  true, SqlDependencyEx.NotificationTypes.Insert);
-      //Assert.That(asd.GetUninstallServiceBrokerNotificationScript(), Is.EqualTo(asd.GetUninstallServiceBrokerNotificationScript2()));
+      var asd = new SqlDependencyEx.QueueInitializer("TestDataBase", 1, "TestTableName", "dbo", "connectionString",
+        true, SqlDependencyEx.NotificationTypes.Insert);
+      //Assert.That(asd.GetInstallNotificationProcedureScript2(), Is.EqualTo(asd.GetInstallNotificationProcedureScript()));
     }
   }
 }

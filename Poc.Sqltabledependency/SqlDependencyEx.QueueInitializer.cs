@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace Poc.Sqltabledependency {
   public sealed partial class SqlDependencyEx {
-    private class QueueInitializer {
+    public class QueueInitializer {
       public QueueInitializer(string databaseName, int identity, string tableName, string schemaName, string connectionString, bool detailsIncluded, NotificationTypes notificationTypes) {
         DatabaseName = databaseName;
         Identity = identity;
@@ -43,49 +43,20 @@ namespace Poc.Sqltabledependency {
 
 
       public void InstallNotification() {
+        ExecuteNonQuery(GetInstallNotificationProcedureScript2());
 
         string execInstallationProcedureScript = string.Format(
           SQL_FORMAT_EXECUTE_PROCEDURE,
           DatabaseName,
           InstallListenerProcedureName,
           SchemaName);
-        ExecuteNonQuery(GetInstallNotificationProcedureScript());
-
         ExecuteNonQuery(execInstallationProcedureScript);
       }
 
-      private string GetInstallNotificationProcedureScript() {
-        string installServiceBrokerNotificationScript = string.Format(
-          SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION,
-          DatabaseName,
-          ConversationQueueName,
-          ConversationServiceName,
-          SchemaName);
-        string installNotificationTriggerScript =
-          string.Format(
-            SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER,
-            TableName,
-            ConversationTriggerName,
-            TriggerTypeByListenerType,
-            ConversationServiceName,
-            DetailsIncluded ? string.Empty : @"NOT",
-            SchemaName);
-        string uninstallNotificationTriggerScript =
-          string.Format(
-            SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER,
-            ConversationTriggerName,
-            SchemaName);
-        string installationProcedureScript =
-          string.Format(
-            SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE,
-            DatabaseName,
-            InstallListenerProcedureName,
-            installServiceBrokerNotificationScript.Replace("'", "''"),
-            installNotificationTriggerScript.Replace("'", "''''"),
-            uninstallNotificationTriggerScript.Replace("'", "''"),
-            TableName,
-            SchemaName);
-        return installationProcedureScript;
+      public string GetInstallNotificationProcedureScript2()
+      {
+
+        return SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE2;
       }
 
       private string GetUninstallNotificationProcedureScript() {
@@ -170,7 +141,7 @@ namespace Poc.Sqltabledependency {
                     PRINT @msg
                 ";
 
-      /// <summary>
+            /// <summary>
       /// T-SQL script-template which creates notification setup procedure.
       /// {0} - database name.
       /// {1} - setup procedure name.
@@ -180,20 +151,20 @@ namespace Poc.Sqltabledependency {
       /// {5} - table name.
       /// {6} - schema name.
       /// </summary>
-      private const string SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE = @"
-                USE [{0}]
-                " + SQL_PERMISSIONS_INFO + @"
-                IF OBJECT_ID ('{6}.{1}', 'P') IS NULL
+      private string SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE2 => $@"
+                USE [{DatabaseName}]
+                {SQL_PERMISSIONS_INFO}
+                IF OBJECT_ID ('{SchemaName}.{InstallListenerProcedureName}', 'P') IS NULL
                 BEGIN
                     EXEC ('
-                        CREATE PROCEDURE {6}.{1}
+                        CREATE PROCEDURE {SchemaName}.{InstallListenerProcedureName}
                         AS
                         BEGIN
                             -- Service Broker configuration statement.
-                            {2}
+                            {SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION2}
 
                             -- Notification Trigger check statement.
-                            {4}
+                            {SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER2}
 
                             -- Notification Trigger configuration statement.
                             DECLARE @triggerStatement NVARCHAR(MAX)
@@ -201,11 +172,11 @@ namespace Poc.Sqltabledependency {
                             DECLARE @sqlInserted NVARCHAR(MAX)
                             DECLARE @sqlDeleted NVARCHAR(MAX)
                             
-                            SET @triggerStatement = N''{3}''
+                            SET @triggerStatement = N''{SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER2}''
                             
                             SET @select = STUFF((SELECT '','' + ''['' + COLUMN_NAME + '']''
 						                         FROM INFORMATION_SCHEMA.COLUMNS
-						                         WHERE DATA_TYPE NOT IN  (''text'',''ntext'',''image'',''geometry'',''geography'') AND TABLE_SCHEMA = ''{6}'' AND TABLE_NAME = ''{5}'' AND TABLE_CATALOG = ''{0}''
+						                         WHERE DATA_TYPE NOT IN  (''text'',''ntext'',''image'',''geometry'',''geography'') AND TABLE_SCHEMA = ''{SchemaName}'' AND TABLE_NAME = ''{TableName}'' AND TABLE_CATALOG = ''{DatabaseName}''
 						                         FOR XML PATH ('''')
 						                         ), 1, 1, '''')
                             SET @sqlInserted = 
@@ -238,8 +209,8 @@ namespace Poc.Sqltabledependency {
       /// </summary>
       private const string SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE = @"
                 USE [{0}]
-                " + SQL_PERMISSIONS_INFO + @"
-                IF OBJECT_ID ('{4}.{1}', 'P') IS NULL
+                " + SQL_PERMISSIONS_INFO + 
+                @"IF OBJECT_ID ('{4}.{1}', 'P') IS NULL
                 BEGIN
                     EXEC ('
                         CREATE PROCEDURE {4}.{1}
@@ -260,9 +231,41 @@ namespace Poc.Sqltabledependency {
                 END
             ";
 
+      /// <summary>
+      /// T-SQL script-template which creates notification uninstall procedure.
+      /// {0} - database name.
+      /// {1} - uninstall procedure name.
+      /// {2} - notification trigger drop statement.
+      /// {3} - service broker uninstall statement.
+      /// {4} - schema name.
+      /// {5} - install procedure name.
+      /// </summary>
+      private string SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE2 => $@"
+                USE [{DatabaseName}]
+                { SQL_PERMISSIONS_INFO }
+                IF OBJECT_ID ('{SchemaName}.{UninstallListenerProcedureName}', 'P') IS NULL
+                BEGIN
+                    EXEC ('
+                        CREATE PROCEDURE {SchemaName}.{UninstallListenerProcedureName}
+                        AS
+                        BEGIN
+                            -- Notification Trigger drop statement.
+                            {3}
+
+                            -- Service Broker uninstall statement.
+                            {2}
+
+                            IF OBJECT_ID (''{SchemaName}.{InstallListenerProcedureName}'', ''P'') IS NOT NULL
+                                DROP PROCEDURE {SchemaName}.{InstallListenerProcedureName}
+                            
+                            DROP PROCEDURE {SchemaName}.{UninstallListenerProcedureName}
+                        END
+                        ')
+                END
+            ";
+
       #endregion
       #region ServiceBroker notification
-
       /// <summary>
       /// T-SQL script-template which prepares database for ServiceBroker notification.
       /// {0} - database name;
@@ -270,29 +273,30 @@ namespace Poc.Sqltabledependency {
       /// {2} - conversation service name.
       /// {3} - schema name.
       /// </summary>
-      private const string SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION = @"
+      private string SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION2 => $@"
                 -- Setup Service Broker
                 IF EXISTS (SELECT * FROM sys.databases 
-                                    WHERE name = '{0}' AND (is_broker_enabled = 0 OR is_trustworthy_on = 0)) 
+                                    WHERE name = ''{DatabaseName}'' AND (is_broker_enabled = 0 OR is_trustworthy_on = 0)) 
                 BEGIN
 
-                    ALTER DATABASE [{0}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
-                    ALTER DATABASE [{0}] SET ENABLE_BROKER; 
-                    ALTER DATABASE [{0}] SET MULTI_USER WITH ROLLBACK IMMEDIATE
+                    ALTER DATABASE [{DatabaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                    ALTER DATABASE [{DatabaseName}] SET ENABLE_BROKER; 
+                    ALTER DATABASE [{DatabaseName}] SET MULTI_USER WITH ROLLBACK IMMEDIATE
 
                     -- FOR SQL Express
-                    ALTER AUTHORIZATION ON DATABASE::[{0}] TO [sa]
-                    ALTER DATABASE [{0}] SET TRUSTWORTHY ON;
+                    ALTER AUTHORIZATION ON DATABASE::[{DatabaseName}] TO [sa]
+                    ALTER DATABASE [{DatabaseName}] SET TRUSTWORTHY ON;
 
                 END
 
                 -- Create a queue which will hold the tracked information 
-                IF NOT EXISTS (SELECT * FROM sys.service_queues WHERE name = '{1}')
-	                CREATE QUEUE {3}.[{1}]
+                IF NOT EXISTS (SELECT * FROM sys.service_queues WHERE name = ''{ConversationQueueName}'')
+	                CREATE QUEUE {SchemaName}.[{ConversationQueueName}]
                 -- Create a service on which tracked information will be sent 
-                IF NOT EXISTS(SELECT * FROM sys.services WHERE name = '{2}')
-	                CREATE SERVICE [{2}] ON QUEUE {3}.[{1}] ([DEFAULT]) 
+                IF NOT EXISTS(SELECT * FROM sys.services WHERE name = ''{ConversationServiceName}'')
+	                CREATE SERVICE [{ConversationServiceName}] ON QUEUE {SchemaName}.[{ConversationQueueName}] ([DEFAULT]) 
             ";
+
 
       /// <summary>
       /// T-SQL script-template which removes database notification.
@@ -338,8 +342,8 @@ namespace Poc.Sqltabledependency {
                     DROP TRIGGER {1}.[{0}];
             ";
 
-      private const string SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER = @"
-                IF OBJECT_ID ('{1}.{0}', 'TR') IS NOT NULL
+      private string SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER2 => $@"
+                IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
                     RETURN;
             ";
 
@@ -354,52 +358,51 @@ namespace Poc.Sqltabledependency {
       /// %inserted_select_statement% - sql code which sets trigger "inserted" value to @retvalOUT variable.
       /// %deleted_select_statement% - sql code which sets trigger "deleted" value to @retvalOUT variable.
       /// </summary>
-      private const string SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER = @"
-                CREATE TRIGGER [{1}]
-                ON {5}.[{0}]
-                AFTER {2} 
+      private string SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER2 => $@"
+                CREATE TRIGGER [{ConversationTriggerName}]
+                ON {SchemaName}.[{TableName}]
+                AFTER {TriggerTypeByListenerType} 
                 AS
 
                 SET NOCOUNT ON;
 
-                --Trigger {0} is rising...
-                IF EXISTS (SELECT * FROM sys.services WHERE name = '{3}')
+                --Trigger {TableName} is rising...
+                IF EXISTS (SELECT * FROM sys.services WHERE name = ''''{ConversationServiceName}'''')
                 BEGIN
                     DECLARE @message NVARCHAR(MAX)
-                    SET @message = N'<root/>'
+                    SET @message = N''''<root/>''''
 
-                    IF ({4} EXISTS(SELECT 1))
+                    IF ({(DetailsIncluded ? string.Empty : @"NOT")} EXISTS(SELECT 1))
                     BEGIN
                         DECLARE @retvalOUT NVARCHAR(MAX)
 
                         %inserted_select_statement%
 
                         IF (@retvalOUT IS NOT NULL)
-                        BEGIN SET @message = N'<root>' + @retvalOUT END                        
+                        BEGIN SET @message = N''''<root>'''' + @retvalOUT END                        
 
                         %deleted_select_statement%
 
                         IF (@retvalOUT IS NOT NULL)
                         BEGIN
-                            IF (@message = N'<root/>') BEGIN SET @message = N'<root>' + @retvalOUT END
+                            IF (@message = N''''<root/>'''') BEGIN SET @message = N''''<root>'''' + @retvalOUT END
                             ELSE BEGIN SET @message = @message + @retvalOUT END
                         END 
 
-                        IF (@message != N'<root/>') BEGIN SET @message = @message + N'</root>' END
+                        IF (@message != N''''<root/>'''') BEGIN SET @message = @message + N''''</root>'''' END
                     END
 
                 	--Beginning of dialog...
                 	DECLARE @ConvHandle UNIQUEIDENTIFIER
                 	--Determine the Initiator Service, Target Service and the Contract 
                 	BEGIN DIALOG @ConvHandle 
-                        FROM SERVICE [{3}] TO SERVICE '{3}' ON CONTRACT [DEFAULT] WITH ENCRYPTION=OFF, LIFETIME = 60; 
+                        FROM SERVICE [{ConversationServiceName}] TO SERVICE ''''{ConversationServiceName}'''' ON CONTRACT [DEFAULT] WITH ENCRYPTION=OFF, LIFETIME = 60; 
 	                --Send the Message
 	                SEND ON CONVERSATION @ConvHandle MESSAGE TYPE [DEFAULT] (@message);
 	                --End conversation
 	                END CONVERSATION @ConvHandle;
                 END
             ";
-
       #endregion
     }
   }
