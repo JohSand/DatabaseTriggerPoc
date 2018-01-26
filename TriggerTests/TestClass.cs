@@ -102,7 +102,6 @@ namespace TriggerTests {
     {
       var asd = new SqlDependencyEx.QueueInitializer("TestDataBase", 1, "TestTableName", "dbo", "connectionString",
         true, SqlDependencyEx.NotificationTypes.Insert);
-      //Assert.That(asd.GetInstallNotificationProcedureScript2(), Is.EqualTo(asd.GetInstallNotificationProcedureScript()));
     }
   }
 }

@@ -2,8 +2,6 @@
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading;
 
 namespace Poc.Sqltabledependency {
   public sealed partial class SqlDependencyEx {
@@ -43,46 +41,16 @@ namespace Poc.Sqltabledependency {
 
 
       public void InstallNotification() {
-        ExecuteNonQuery(GetInstallNotificationProcedureScript2());
+        ExecuteNonQuery(SqlFormatCreateInstallationProcedure);
 
-        string execInstallationProcedureScript = 
-          GetSqlFormatExecuteProcedure(InstallListenerProcedureName);
-        ExecuteNonQuery(execInstallationProcedureScript);
+        ExecuteNonQuery(GetSqlFormatExecuteProcedure(InstallListenerProcedureName));
       }
 
-      public string GetInstallNotificationProcedureScript2()
-      {
-
-        return SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE2;
-      }
-
-      private string GetUninstallNotificationProcedureScript() {
-        string uninstallServiceBrokerNotificationScript = string.Format(
-          SQL_FORMAT_UNINSTALL_SERVICE_BROKER_NOTIFICATION,
-          ConversationQueueName,
-          ConversationServiceName,
-          SchemaName);
-        string uninstallNotificationTriggerScript = string.Format(
-          SQL_FORMAT_DELETE_NOTIFICATION_TRIGGER,
-          ConversationTriggerName,
-          SchemaName);
-        string uninstallationProcedureScript =
-          string.Format(
-            SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE,
-            DatabaseName,
-            UninstallListenerProcedureName,
-            uninstallServiceBrokerNotificationScript.Replace("'", "''"),
-            uninstallNotificationTriggerScript.Replace("'", "''"),
-            SchemaName,
-            InstallListenerProcedureName);
-        return uninstallationProcedureScript;
-      }
+      public string GetUninstallNotificationProcedureScript2() => SqlFormatCreateUninstallationProcedure;
 
       public void UninstallNotification() {
-        ExecuteNonQuery(GetUninstallNotificationProcedureScript());
-
-        string execUninstallationProcedureScript = GetSqlFormatExecuteProcedure(UninstallListenerProcedureName);
-        ExecuteNonQuery(execUninstallationProcedureScript);
+        ExecuteNonQuery(GetUninstallNotificationProcedureScript2());
+        ExecuteNonQuery(GetSqlFormatExecuteProcedure(UninstallListenerProcedureName));
       }
 
       private string TriggerTypeByListenerType => 
@@ -118,7 +86,7 @@ namespace Poc.Sqltabledependency {
       }
       #region Procedures
 
-      private const string SQL_PERMISSIONS_INFO = @"
+      private const string SqlPermissionsInfo = @"
                     DECLARE @msg VARCHAR(MAX)
                     DECLARE @crlf CHAR(1)
                     SET @crlf = CHAR(10)
@@ -138,17 +106,10 @@ namespace Poc.Sqltabledependency {
 
             /// <summary>
       /// T-SQL script-template which creates notification setup procedure.
-      /// {0} - database name.
-      /// {1} - setup procedure name.
-      /// {2} - service broker configuration statement.
-      /// {3} - notification trigger configuration statement.
-      /// {4} - notification trigger check statement.
-      /// {5} - table name.
-      /// {6} - schema name.
       /// </summary>
-      private string SQL_FORMAT_CREATE_INSTALLATION_PROCEDURE2 => $@"
+      private string SqlFormatCreateInstallationProcedure => $@"
                 USE [{DatabaseName}]
-                {SQL_PERMISSIONS_INFO}
+                {SqlPermissionsInfo}
                 IF OBJECT_ID ('{SchemaName}.{InstallListenerProcedureName}', 'P') IS NULL
                 BEGIN
                     EXEC ('
@@ -156,10 +117,10 @@ namespace Poc.Sqltabledependency {
                         AS
                         BEGIN
                             -- Service Broker configuration statement.
-                            {SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION2}
+                            {SqlFormatInstallSeviceBrokerNotification}
 
                             -- Notification Trigger check statement.
-                            {SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER2}
+                            {SqlFormatCheckNotificationTrigger}
 
                             -- Notification Trigger configuration statement.
                             DECLARE @triggerStatement NVARCHAR(MAX)
@@ -167,7 +128,7 @@ namespace Poc.Sqltabledependency {
                             DECLARE @sqlInserted NVARCHAR(MAX)
                             DECLARE @sqlDeleted NVARCHAR(MAX)
                             
-                            SET @triggerStatement = N''{SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER2}''
+                            SET @triggerStatement = N''{SqlFormatCreateNotificationTrigger}''
                             
                             SET @select = STUFF((SELECT '','' + ''['' + COLUMN_NAME + '']''
 						                         FROM INFORMATION_SCHEMA.COLUMNS
@@ -195,49 +156,10 @@ namespace Poc.Sqltabledependency {
 
       /// <summary>
       /// T-SQL script-template which creates notification uninstall procedure.
-      /// {0} - database name.
-      /// {1} - uninstall procedure name.
-      /// {2} - notification trigger drop statement.
-      /// {3} - service broker uninstall statement.
-      /// {4} - schema name.
-      /// {5} - install procedure name.
       /// </summary>
-      private const string SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE = @"
-                USE [{0}]
-                " + SQL_PERMISSIONS_INFO + 
-                @"IF OBJECT_ID ('{4}.{1}', 'P') IS NULL
-                BEGIN
-                    EXEC ('
-                        CREATE PROCEDURE {4}.{1}
-                        AS
-                        BEGIN
-                            -- Notification Trigger drop statement.
-                            {3}
-
-                            -- Service Broker uninstall statement.
-                            {2}
-
-                            IF OBJECT_ID (''{4}.{5}'', ''P'') IS NOT NULL
-                                DROP PROCEDURE {4}.{5}
-                            
-                            DROP PROCEDURE {4}.{1}
-                        END
-                        ')
-                END
-            ";
-
-      /// <summary>
-      /// T-SQL script-template which creates notification uninstall procedure.
-      /// {0} - database name.
-      /// {1} - uninstall procedure name.
-      /// {2} - notification trigger drop statement.
-      /// {3} - service broker uninstall statement.
-      /// {4} - schema name.
-      /// {5} - install procedure name.
-      /// </summary>
-      private string SQL_FORMAT_CREATE_UNINSTALLATION_PROCEDURE2 => $@"
+      private string SqlFormatCreateUninstallationProcedure => $@"
                 USE [{DatabaseName}]
-                { SQL_PERMISSIONS_INFO }
+                { SqlPermissionsInfo }
                 IF OBJECT_ID ('{SchemaName}.{UninstallListenerProcedureName}', 'P') IS NULL
                 BEGIN
                     EXEC ('
@@ -245,10 +167,10 @@ namespace Poc.Sqltabledependency {
                         AS
                         BEGIN
                             -- Notification Trigger drop statement.
-                            {3}
+                            {SqlFormatDeleteNotificationTrigger}
 
                             -- Service Broker uninstall statement.
-                            {2}
+                            {SqlFormatUninstallServiceBrokerNotification}
 
                             IF OBJECT_ID (''{SchemaName}.{InstallListenerProcedureName}'', ''P'') IS NOT NULL
                                 DROP PROCEDURE {SchemaName}.{InstallListenerProcedureName}
@@ -263,12 +185,8 @@ namespace Poc.Sqltabledependency {
       #region ServiceBroker notification
       /// <summary>
       /// T-SQL script-template which prepares database for ServiceBroker notification.
-      /// {0} - database name;
-      /// {1} - conversation queue name.
-      /// {2} - conversation service name.
-      /// {3} - schema name.
       /// </summary>
-      private string SQL_FORMAT_INSTALL_SEVICE_BROKER_NOTIFICATION2 => $@"
+      private string SqlFormatInstallSeviceBrokerNotification => $@"
                 -- Setup Service Broker
                 IF EXISTS (SELECT * FROM sys.databases 
                                     WHERE name = ''{DatabaseName}'' AND (is_broker_enabled = 0 OR is_trustworthy_on = 0)) 
@@ -292,22 +210,18 @@ namespace Poc.Sqltabledependency {
 	                CREATE SERVICE [{ConversationServiceName}] ON QUEUE {SchemaName}.[{ConversationQueueName}] ([DEFAULT]) 
             ";
 
-
       /// <summary>
       /// T-SQL script-template which removes database notification.
-      /// {0} - conversation queue name.
-      /// {1} - conversation service name.
-      /// {2} - schema name.
       /// </summary>
-      private const string SQL_FORMAT_UNINSTALL_SERVICE_BROKER_NOTIFICATION = @"
+      private string SqlFormatUninstallServiceBrokerNotification => $@"
                 DECLARE @serviceId INT
                 SELECT @serviceId = service_id FROM sys.services 
-                WHERE sys.services.name = '{1}'
+                WHERE sys.services.name = ''{ConversationServiceName}''
 
                 DECLARE @ConvHandle uniqueidentifier
                 DECLARE Conv CURSOR FOR
                 SELECT CEP.conversation_handle FROM sys.conversation_endpoints CEP
-                WHERE CEP.service_id = @serviceId AND ([state] != 'CD' OR [lifetime] > GETDATE() + 1)
+                WHERE CEP.service_id = @serviceId AND ([state] != ''CD'' OR [lifetime] > GETDATE() + 1)
 
                 OPEN Conv;
                 FETCH NEXT FROM Conv INTO @ConvHandle;
@@ -319,9 +233,9 @@ namespace Poc.Sqltabledependency {
                 DEALLOCATE Conv;
 
                 -- Droping service and queue.
-                DROP SERVICE [{1}];
-                IF OBJECT_ID ('{2}.{0}', 'SQ') IS NOT NULL
-	                DROP QUEUE {2}.[{0}];
+                DROP SERVICE [{ConversationServiceName}];
+                IF OBJECT_ID (''{SchemaName}.{ConversationQueueName}'', ''SQ'') IS NOT NULL
+	                DROP QUEUE {SchemaName}.[{ConversationQueueName}];
             ";
 
       #endregion
@@ -332,12 +246,12 @@ namespace Poc.Sqltabledependency {
       /// {0} - notification trigger name. 
       /// {1} - schema name.
       /// </summary>
-      private const string SQL_FORMAT_DELETE_NOTIFICATION_TRIGGER = @"
-                IF OBJECT_ID ('{1}.{0}', 'TR') IS NOT NULL
-                    DROP TRIGGER {1}.[{0}];
+      private string SqlFormatDeleteNotificationTrigger => $@"
+                IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
+                    DROP TRIGGER {SchemaName}.[{ConversationTriggerName}];
             ";
 
-      private string SQL_FORMAT_CHECK_NOTIFICATION_TRIGGER2 => $@"
+      private string SqlFormatCheckNotificationTrigger => $@"
                 IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
                     RETURN;
             ";
@@ -353,7 +267,7 @@ namespace Poc.Sqltabledependency {
       /// %inserted_select_statement% - sql code which sets trigger "inserted" value to @retvalOUT variable.
       /// %deleted_select_statement% - sql code which sets trigger "deleted" value to @retvalOUT variable.
       /// </summary>
-      private string SQL_FORMAT_CREATE_NOTIFICATION_TRIGGER2 => $@"
+      private string SqlFormatCreateNotificationTrigger => $@"
                 CREATE TRIGGER [{ConversationTriggerName}]
                 ON {SchemaName}.[{TableName}]
                 AFTER {TriggerTypeByListenerType} 
