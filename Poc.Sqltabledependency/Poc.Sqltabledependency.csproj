@@ -49,6 +49,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="SingleThreadSynchronizationContext.cs" />
+    <Compile Include="SingleThreadTaskScheduler.cs" />
     <Compile Include="MiscExtensions.cs" />
     <Compile Include="SqlDependencyEx.cs" />
     <Compile Include="SqlDependencyEx.NotificationTypes.cs" />

@@ -51,8 +51,8 @@ namespace Poc.Sqltabledependency {
       notificationLoop = Task.Factory.StartNew(
         () => NotificationLoop(_threadSource.Token),
         _threadSource.Token,
-        TaskCreationOptions.LongRunning,
-        TaskScheduler.Default);
+        TaskCreationOptions.None,//we dont understand that anyways
+        new SingleThreadTaskScheduler());
     }
 
 
