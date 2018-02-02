@@ -14,7 +14,7 @@ namespace Poc.Sqltabledependency {
   /// </remarks>
   public sealed class SingleThreadTaskScheduler : TaskScheduler, IDisposable {
     private readonly Thread _thread;
-    private readonly CancellationTokenSource _cancellationToken = new CancellationTokenSource();
+    private readonly CancellationTokenSource _tokenSource = new CancellationTokenSource();
     private readonly BlockingCollection<Task> _tasks = new BlockingCollection<Task>();
     private readonly Action _initAction;
 
@@ -62,8 +62,11 @@ namespace Poc.Sqltabledependency {
           _initAction();
           //main loop
           _tasks
-            .GetConsumingEnumerable(_cancellationToken.Token)
+            .GetConsumingEnumerable(_tokenSource.Token)
             .ForEach(TryExecuteTask);
+        }
+        catch (OperationCanceledException) {
+          
         }
         finally {
           _tasks.Dispose();
@@ -85,58 +88,51 @@ namespace Poc.Sqltabledependency {
     ///     Thrown when this <see cref="SingleThreadTaskScheduler"/> already has been disposed by calling either <see cref="Wait"/> or <see cref="Dispose"/>.
     /// </exception>
     public void Wait() {
-      if (_cancellationToken.IsCancellationRequested)
-        throw new TaskSchedulerException("Cannot wait after disposal.");
+      VerifyNotCancelled();
 
       _tasks.CompleteAdding();
       _thread.Join();
-
-      _cancellationToken.Cancel();
+      _tokenSource.Cancel();
     }
 
-    /// <summary>
-    ///     Disposes this <see cref="SingleThreadTaskScheduler"/> by not accepting any further work and not executing previously scheduled tasks.
-    /// </summary>
-    /// <remarks>
-    ///     Call <see cref="Wait"/> instead to finish all queued work. You do not need to call <see cref="Dispose"/> after calling <see cref="Wait"/>.
-    /// </remarks>
     public void Dispose() {
-      if (_cancellationToken.IsCancellationRequested)
+      if (_tokenSource.IsCancellationRequested)
         return;
 
       _tasks.CompleteAdding();
-      _cancellationToken.Cancel();
+      _tokenSource.Cancel();
     }
 
+
+    /// <inheritdoc />
     protected override void QueueTask(Task task) {
-      VerifyNotDisposed();
-
-      _tasks.Add(task, _cancellationToken.Token);
+      VerifyNotCancelled();      
+      _tasks.Add(task, _tokenSource.Token);
     }
+
+    protected override bool TryDequeue(Task task) {
+      return false;
+    }
+
+
 
     protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) {
-      VerifyNotDisposed();
+      VerifyNotCancelled();
 
-      if (_thread != Thread.CurrentThread)
-        return false;
-      if (_cancellationToken.Token.IsCancellationRequested)
-        return false;
-
-      TryExecuteTask(task);
-      return true;
+      return _thread == Thread.CurrentThread && !_tokenSource.IsCancellationRequested && TryExecuteTask(task);
     }
 
     protected override IEnumerable<Task> GetScheduledTasks() {
-      VerifyNotDisposed();
+      VerifyNotCancelled();
 
       return _tasks.ToArray();
     }
 
 
 
-    private void VerifyNotDisposed() {
-      if (_cancellationToken.IsCancellationRequested)
-        throw new ObjectDisposedException(typeof(SingleThreadTaskScheduler).Name);
+    private void VerifyNotCancelled() {
+      if (_tokenSource.IsCancellationRequested)
+        throw new TaskSchedulerException(typeof(SingleThreadTaskScheduler).Name);
     }
   }
 }
