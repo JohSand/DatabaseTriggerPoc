@@ -91,3 +91,18 @@ AS
 	set @message1 = (SELECT * FROM deleted for xml AUTO)
     PRINT 'deleted' + @message1
 GO 
+
+alter TRIGGER [dbo].ddl_trig_database4   
+ON [Sandbox].[dbo].[TestTable] 
+AFTER UPDATE, DELETE  
+AS   
+	DECLARE @message NVARCHAR(MAX)
+
+	set @message = 
+		(SELECT 
+		 (SELECT * FROM deleted d for xml PATH('deleted'), ROOT('test1')),
+		 (SELECT * FROM inserted for xml PATH('inserted'), ROOT('test2'))
+	 for xml PATH('test'))
+	 print @message
+GO 
+
