@@ -94,23 +94,26 @@ namespace Poc.Sqltabledependency {
                 DECLARE @ConvHandle UNIQUEIDENTIFIER
                 DECLARE @message VARBINARY(MAX)
                 USE [{DatabaseName}]
-                WAITFOR (RECEIVE TOP(1) 
-                        @ConvHandle=Conversation_Handle,
-                        @message=message_body FROM {SchemaName}.[ListenerQueue_{Identity}]),
-                        TIMEOUT {commandTimeout / 2};
-	              BEGIN TRY 
+                WAITFOR 
+                (
+                  RECEIVE TOP(1) 
+                    @ConvHandle=Conversation_Handle,
+                    @message=message_body 
+                FROM {SchemaName}.[ListenerQueue_{Identity}]
+                ), TIMEOUT {commandTimeout / 2};
+
+                BEGIN
                   END CONVERSATION @ConvHandle; 
-                END TRY 
-                BEGIN CATCH 
-                END CATCH
+                END
                 SELECT CAST(@message AS NVARCHAR(MAX)) 
             ";
 
       using (SqlConnection conn = new SqlConnection(ConnectionString))
       using (SqlCommand command = new SqlCommand(commandText, conn)) {
-        await conn.OpenAsync(token);
         command.CommandType = CommandType.Text;
         command.CommandTimeout = commandTimeout;
+
+        await conn.OpenAsync(token);
         using (var reader = await command.ExecuteReaderAsync(token)) {
           if (!await reader.ReadAsync(token) || await reader.IsDBNullAsync(0, token))
             return string.Empty;
