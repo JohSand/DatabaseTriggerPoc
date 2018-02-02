@@ -4,6 +4,12 @@ using System.Data.SqlClient;
 using System.Linq;
 
 namespace Poc.Sqltabledependency {
+  /// <summary>
+  /// Simplify with:
+  /// http://blog.maskalik.com/sql-server-service-broker/scalable-webservice-calls-from-database/
+  /// http://www.c-sharpcorner.com/UploadFile/ff2f08/asynchronous-triggers-using-sql-broker/
+  /// https://sqlperformance.com/2014/03/sql-performance/configuring-service-broker
+  /// </summary>
   public sealed partial class SqlDependencyEx {
     public class QueueInitializer {
       public QueueInitializer(string databaseName, int identity, string tableName, string schemaName, string connectionString, bool detailsIncluded, NotificationTypes notificationTypes) {
@@ -120,7 +126,8 @@ namespace Poc.Sqltabledependency {
                             {SqlFormatInstallSeviceBrokerNotification}
 
                             -- Notification Trigger check statement.
-                            {SqlFormatCheckNotificationTrigger}
+                            IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
+                                  RETURN;
 
                             -- Notification Trigger configuration statement.
                             DECLARE @triggerStatement NVARCHAR(MAX)
@@ -128,7 +135,7 @@ namespace Poc.Sqltabledependency {
                             DECLARE @sqlInserted NVARCHAR(MAX)
                             DECLARE @sqlDeleted NVARCHAR(MAX)
                             
-                            SET @triggerStatement = N''{SqlFormatCreateNotificationTrigger}''
+
                             
                             SET @select = STUFF((SELECT '','' + ''['' + COLUMN_NAME + '']''
 						                         FROM INFORMATION_SCHEMA.COLUMNS
@@ -142,11 +149,12 @@ namespace Poc.Sqltabledependency {
                             SET @sqlDeleted = 
                                 N''SET @retvalOUT = (SELECT '' + @select + N'' 
                                                      FROM DELETED 
-                                                     FOR XML PATH(''''row''''), ROOT (''''deleted''''))''                            
-                            SET @triggerStatement = REPLACE(@triggerStatement
-                                                     , ''%inserted_select_statement%'', @sqlInserted)
-                            SET @triggerStatement = REPLACE(@triggerStatement
-                                                     , ''%deleted_select_statement%'', @sqlDeleted)
+                                                     FOR XML PATH(''''row''''), ROOT (''''deleted''''))''
+
+                            SET @triggerStatement = N''{SqlFormatCreateNotificationTrigger}''
+
+                            SET @triggerStatement = REPLACE(@triggerStatement, ''%inserted_select_statement%'', @sqlInserted)
+                            SET @triggerStatement = REPLACE(@triggerStatement, ''%deleted_select_statement%'', @sqlDeleted)
 
                             EXEC sp_executesql @triggerStatement
                         END
@@ -167,7 +175,8 @@ namespace Poc.Sqltabledependency {
                         AS
                         BEGIN
                             -- Notification Trigger drop statement.
-                            {SqlFormatDeleteNotificationTrigger}
+                            IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
+                                DROP TRIGGER {SchemaName}.[{ConversationTriggerName}];
 
                             -- Service Broker uninstall statement.
                             {SqlFormatUninstallServiceBrokerNotification}
@@ -240,22 +249,6 @@ namespace Poc.Sqltabledependency {
 
       #endregion
       #region Notification Trigger
-
-      /// <summary>
-      /// T-SQL script-template which creates notification trigger.
-      /// {0} - notification trigger name. 
-      /// {1} - schema name.
-      /// </summary>
-      private string SqlFormatDeleteNotificationTrigger => $@"
-                IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
-                    DROP TRIGGER {SchemaName}.[{ConversationTriggerName}];
-            ";
-
-      private string SqlFormatCheckNotificationTrigger => $@"
-                IF OBJECT_ID (''{SchemaName}.{ConversationTriggerName}'', ''TR'') IS NOT NULL
-                    RETURN;
-            ";
-
       /// <summary>
       /// T-SQL script-template which creates notification trigger.
       /// {0} - monitorable table name.
