@@ -49,14 +49,12 @@ namespace Poc.Sqltabledependency {
     /// <param name="apartmentState">
     ///     The <see cref="ApartmentState"/> to use. Defaults to <see cref="System.Threading.ApartmentState.STA"/>
     /// </param>
-    public SingleThreadTaskScheduler(Action initAction, ApartmentState apartmentState = ApartmentState.STA) : this() {
+    public SingleThreadTaskScheduler(Action initAction, ApartmentState apartmentState = ApartmentState.STA)  {
       if (apartmentState != ApartmentState.MTA && apartmentState != ApartmentState.STA)
         throw new ArgumentException(nameof(apartmentState));
       ApartmentState = apartmentState;
       _initAction = initAction ?? (() => { });
-    }
 
-    private SingleThreadTaskScheduler() {
       void RunEventLoop() {
         try {
           _initAction();
@@ -66,7 +64,7 @@ namespace Poc.Sqltabledependency {
             .ForEach(TryExecuteTask);
         }
         catch (OperationCanceledException) {
-          
+
         }
         finally {
           _tasks.Dispose();

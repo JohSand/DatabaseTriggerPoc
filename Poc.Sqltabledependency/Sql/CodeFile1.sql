@@ -100,9 +100,11 @@ AS
 
 	set @message = 
 		(SELECT 
-		 (SELECT * FROM deleted d for xml PATH('deleted'), ROOT('test1')),
-		 (SELECT * FROM inserted for xml PATH('inserted'), ROOT('test2'))
-	 for xml PATH('test'))
+		 (SELECT * FROM deleted d for xml AUTO),
+		 (SELECT * FROM inserted for xml AUTO)
+	 for xml AUTO)
 	 print @message
 GO 
+
+
 

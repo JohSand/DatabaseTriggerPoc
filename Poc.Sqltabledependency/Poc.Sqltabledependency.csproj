@@ -35,6 +35,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Transactions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -49,14 +50,13 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NotificationTypes.cs" />
+    <Compile Include="RefactoredVersion\DbTableListener.cs" />
+    <Compile Include="RefactoredVersion\ListenerInstaller.cs" />
+    <Compile Include="RefactoredVersion\TableChangedEventArgs.cs" />
     <Compile Include="SingleThreadSynchronizationContext.cs" />
     <Compile Include="SingleThreadTaskScheduler.cs" />
     <Compile Include="MiscExtensions.cs" />
-    <Compile Include="SqlDependencyEx.cs" />
-    <Compile Include="SqlDependencyEx.NotificationTypes.cs" />
-    <Compile Include="SqlDependencyEx.QueueInitializer.cs" />
-    <Compile Include="SqlDependencyEx.TableChangedEventArgs.cs" />
-    <Compile Include="ConnectionFactory.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
