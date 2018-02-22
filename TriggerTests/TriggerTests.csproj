@@ -76,6 +76,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BlockingCollectionSlimTests\TestClass1.cs" />
     <Compile Include="ConnectionFactory.cs" />
     <Compile Include="DynamicDispatchTests.cs" />
     <Compile Include="SchedulerTests.cs" />

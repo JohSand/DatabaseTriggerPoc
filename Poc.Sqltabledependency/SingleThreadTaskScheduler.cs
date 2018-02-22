@@ -16,17 +16,16 @@ namespace Poc.Sqltabledependency {
     private readonly Thread _thread;
     private readonly CancellationTokenSource _tokenSource = new CancellationTokenSource();
     private readonly BlockingCollection<Task> _tasks = new BlockingCollection<Task>();
-    private readonly Action _initAction;
 
     /// <summary>
     ///     The <see cref="System.Threading.ApartmentState"/> of the <see cref="Thread"/> this <see cref="SingleThreadTaskScheduler"/> uses to execute its work.
     /// </summary>
     public ApartmentState ApartmentState { get; }
 
+    /// <inheritdoc />
     /// <summary>
-    ///     Indicates the maximum concurrency level this <see cref="T:System.Threading.Tasks.TaskScheduler"/> is able to support.
+    ///     Indicates the maximum concurrency level this <see cref="T:System.Threading.Tasks.TaskScheduler" /> is able to support.
     /// </summary>
-    /// 
     /// <returns>
     ///     Returns <c>1</c>.
     /// </returns>
@@ -53,11 +52,10 @@ namespace Poc.Sqltabledependency {
       if (apartmentState != ApartmentState.MTA && apartmentState != ApartmentState.STA)
         throw new ArgumentException(nameof(apartmentState));
       ApartmentState = apartmentState;
-      _initAction = initAction ?? (() => { });
 
       void RunEventLoop() {
         try {
-          _initAction();
+          initAction?.Invoke();
           //main loop
           _tasks
             .GetConsumingEnumerable(_tokenSource.Token)
