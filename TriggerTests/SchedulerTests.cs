@@ -6,7 +6,10 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using Newtonsoft.Json;
 using NodaTime;
+using NodaTime.Serialization.JsonNet;
+using NodaTime.Text;
 using NUnit.Framework;
 using Poc.Sqltabledependency;
 
@@ -14,17 +17,27 @@ using Poc.Sqltabledependency;
 namespace TriggerTests {
   [TestFixture]
   public class SchedulerTests {
-
+    class Thing
+    {
+      public ZonedDateTime Time { get; set; }
+    }
 
     [Test]
-    public void HowDoesTimeWork() {
-      var t1 = DateTime.UtcNow;
-      var t1Ticks = t1.Ticks;
-      var t2 = new DateTime(t1Ticks);
+    public void HowDoesTimeWork()
+    {
+      var s = new JsonSerializerSettings().ConfigureForNodaTime(DateTimeZoneProviders.Tzdb);
+     
+      var myString = JsonConvert.SerializeObject(new ZonedDateTime(SystemClock.Instance.GetCurrentInstant(), DateTimeZone.Utc), s);
+      Console.WriteLine(myString);
+      var dyn = JsonConvert.DeserializeObject(myString, s);
+      var newString = (string)dyn.ToString();
+      //Console.WriteLine(newString);
+      var deser = JsonConvert.DeserializeObject<ZonedDateTime>("'" + newString + "'", s);
+      Console.WriteLine(deser);
+      var pattern = ZonedDateTimePattern.ExtendedFormatOnlyIso.WithZoneProvider(DateTimeZoneProviders.Serialization);
+      Console.WriteLine(pattern.PatternText);
+      var res = pattern.Parse(newString).Value;
 
-      Assert.That(t1.Ticks, Is.EqualTo(t2.Ticks));
-
-      Assert.That(t2.Kind, Is.EqualTo(DateTimeKind.Utc));
     }
 
     [Test]
@@ -82,7 +95,7 @@ namespace TriggerTests {
 
     [Test]
     public void RunOnThread2() {
-      var scheduler = new SingleThreadTaskScheduler(ApartmentState.MTA);
+      var scheduler = new SingleThreadTaskScheduler(ApartmentState.STA);
       //var factory = new TaskFactory();
       var ctSource = new CancellationTokenSource();
       var task = Task.Factory.StartNew(async () => {
@@ -95,7 +108,7 @@ namespace TriggerTests {
       },
           ctSource.Token,
           TaskCreationOptions.None,
-          TaskScheduler.Default
+          scheduler
         )
         .Unwrap();
       Task.Delay(100).GetAwaiter().GetResult();

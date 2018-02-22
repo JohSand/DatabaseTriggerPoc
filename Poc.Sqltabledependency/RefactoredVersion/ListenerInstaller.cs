@@ -30,18 +30,12 @@ namespace Poc.Sqltabledependency.RefactoredVersion {
     }
 
     private void ExecuteNonQuery(string cmdText, string connString) {
-      try {
-        using (SqlConnection conn = new SqlConnection(connString))
-        using (SqlCommand command = new SqlCommand(cmdText, conn)) {
-          conn.Open();
-          conn.ChangeDatabase(DatabaseName);
-          command.CommandType = CommandType.Text;
-          command.ExecuteNonQuery();
-        }
-      }
-      catch (Exception e) {
-        Console.WriteLine(e);
-        throw;
+      using (SqlConnection conn = new SqlConnection(connString))
+      using (SqlCommand command = new SqlCommand(cmdText, conn)) {
+        conn.Open();
+        conn.ChangeDatabase(DatabaseName);
+        command.CommandType = CommandType.Text;
+        command.ExecuteNonQuery();
       }
     }
 
@@ -119,7 +113,7 @@ namespace Poc.Sqltabledependency.RefactoredVersion {
       $@"
       {SqlPermissionsInfo}
       CREATE MESSAGE TYPE [EventMessage] VALIDATION = WELL_FORMED_XML
-      CREATE CONTRACT [EventContract] AUTHORIZATION dbo ([EventMessage] SENT BY INITIATOR);
+      CREATE CONTRACT [EventContract] AUTHORIZATION {SchemaName} ([EventMessage] SENT BY INITIATOR);
       CREATE QUEUE [{SchemaName}].[{QueueName}] WITH STATUS=ON
       CREATE SERVICE {ServiceName} AUTHORIZATION {SchemaName} 
       ON QUEUE [{SchemaName}].[{QueueName}] ([EventContract]); ";
