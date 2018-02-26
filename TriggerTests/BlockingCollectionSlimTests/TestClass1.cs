@@ -13,13 +13,23 @@ namespace TriggerTests.BlockingCollectionSlimTests {
     public void TestOneConsumer() {
       var list = new List<int>();
 
-      var collection = new BlockingCollectionSlim<int>(new ConcurrentStack<int>());
+      var collection = new BlockingCollectionSlim<int>(new ConcurrentQueue<int>());
 
 
-      var thread = new Thread(() => list.AddRange(collection.GetConsumingEnumerable()));
+      var thread = new Thread(() =>
+      {
+        foreach (var i in collection.GetConsumingEnumerable())
+        {
+          list.Add(i);
+        }
+
+   
+      });
       thread.Start();
+      collection.Add(1);
+      Thread.Sleep(200);
+      foreach (var i in Enumerable.Range(2, 9)) {
 
-      foreach (var i in Enumerable.Range(1, 10)) {
         collection.Add(i);
       }
       collection.CompleteAdding();
